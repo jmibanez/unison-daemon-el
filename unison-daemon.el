@@ -1,7 +1,8 @@
-;;; unison-daemon.el --- Run Unison in the background.   -*- lexical-binding: t; -*-
+;;; unison-daemon.el --- Run Unison in the background   -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2024 JM Ibanez
 
+;; Homepage: https://github.com/jmibanez/unison-daemon-el
 ;; Author: JM Ibanez <jm@jmibanez.com>
 ;; Keywords: lisp convenience unison
 ;; Version: 0.1
@@ -34,7 +35,7 @@
 (require 'cl)
 (require 'seq)
 
-(defgroup unison-daemon nil "Unison daemon customization group"
+(defgroup unison-daemon nil "Unison daemon customization group."
   :group 'convenience)
 
 (defcustom unison-daemon-profile-alist nil
@@ -47,12 +48,12 @@
   '("-ui" "text"
     "-dumbtty"
     "-terse")
-  "Common arguments to Unison when running"
+  "Common arguments to Unison when running."
   :group 'unison-daemon
   :type '(repeat string))
 
 (defcustom unison-executable "unison"
-  "Unison CLI executable. Can be a full path."
+  "Unison CLI executable; can be a full path."
   :group 'unison-daemon
   :type 'file)
 
@@ -62,19 +63,19 @@
   :type 'string)
 
 (defcustom unison-daemon-profile-directory 'detect
-  "Directory where your Unison installation reads its profiles. Default is
-to autodetect this by based on your operating system."
+  "Directory where your Unison installation reads its profiles.
+Default is to autodetect this by based on your operating system."
   :group 'unison-daemon
   :type '(choice (directory :tag "Path to Unison profile directory")
                  (const :tag "Autodetect based on your operating system" detect)))
 
 
 (defun unison-daemon--buffer-name (unison-profile-name)
-  "Get the Unison daemon buffer name for a given profile name."
+  "Get the Unison daemon buffer name for a profile named UNISON-PROFILE-NAME."
   (format "*Unison:%s*" unison-profile-name))
 
 (defun unison-daemon--args (unison-profile-name)
-  "Construct args for running given Unison profile."
+  "Construct args for running given Unison profile named UNISON-PROFILE-NAME."
   (let ((unison-profile-args
          (or (cdr (assoc unison-profile-name
                          unison-daemon-profile-alist))
@@ -83,17 +84,19 @@ to autodetect this by based on your operating system."
             unison-daemon-common-args unison-profile-args)))
 
 (defun unison-daemon--get-proc (unison-profile-name)
-  "Get the running Unison process (or nil if daemon isn't running)."
+  "Get Unison process for UNISON-PROFILE-NAME (or nil if daemon isn't running)."
   (let ((b (get-buffer (unison-daemon--buffer-name unison-profile-name))))
     (and (buffer-live-p b)
          (get-buffer-process b))))
 
 (defun unison-daemon--os-profile-directory ()
+  "Get Unison config and profile directory."
   (pcase system-type
     ('darwin  (expand-file-name "~/Library/Application Support/Unison"))
     (_  (expand-file-name ".unison" "~/"))))
 
 (defun unison-daemon--all-profiles ()
+  "Run Unison for all profiles."
   (let ((profile-dir (or (and (eq unison-daemon-profile-directory 'detect)
                               (unison-daemon--os-profile-directory))
                          unison-daemon-profile-directory)))
@@ -104,9 +107,9 @@ to autodetect this by based on your operating system."
 (defvar unison-show-buffer t)
 
 (defun unison-daemon-for-profile (unison-profile-name)
-  "Run `unison' as a daemon, outputing its sync messages in a buffer in the
-background. If SHOW-BUFFER, switch to its process buffer as well. If the
-daemon is already running, switch to its buffer."
+  "Run `unison' as a daemon for UNISON-PROFILE-NAME, with its messages in a buffer.
+If SHOW-BUFFER, switch to its process buffer as well.  If the daemon is
+already running, switch to its buffer."
   (interactive
    (list (completing-read "Profile: "
                           (unison-daemon--all-profiles))))
@@ -118,18 +121,22 @@ daemon is already running, switch to its buffer."
                            (process-buffer (unison-daemon--get-proc unison-profile-name)))
 
       (progn
-        (let ((dummy (when (get-buffer daemon-buffer-name))))
-          (apply 'start-process
-                 daemon-buffer-name
-                 daemon-buffer-name
-                 unison-executable
-                 daemon-args))
+        (apply 'start-process
+               daemon-buffer-name
+               daemon-buffer-name
+               unison-executable
+               daemon-args)
         (when unison-show-buffer
           (set-window-buffer (selected-window)
                              (process-buffer (unison-daemon--get-proc unison-profile-name))))))))
 
 
 (defun unison-daemon (&optional all-profiles)
+  "Run Unison in the background.
+By default, this runs Unison for your default profile
+UNISON-DAEMON-DEFAULT-PROFILE.  However if you want to run all your
+profiles in the background, you can run this with a prefix
+argument (passing t to ALL-PROFILES)."
   (interactive "P")
   (if all-profiles
       (let ((unison-show-buffer nil))
